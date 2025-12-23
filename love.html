@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>给你的粒子爱心</title>
+  <style>
+    :root{
+      --card-bg: rgba(10, 10, 14, 0.62);
+      --card-border: rgba(255, 105, 180, 0.25);
+      --text: rgba(255,255,255,0.92);
+      --muted: rgba(255,255,255,0.72);
+      --btn-bg: rgba(255, 105, 180, 0.16);
+      --btn-border: rgba(255, 105, 180, 0.45);
+      --shadow: 0 18px 60px rgba(0,0,0,.55);
+    }
+    *{box-sizing:border-box}
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #000;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+    canvas { display: block; }
+
+    /* 情书卡片 */
+    .letter-wrap{
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      pointer-events: none; /* 让 canvas 仍能接收事件（虽然我们没用到） */
+    }
+    .letter{
+      width: min(680px, 94vw);
+      max-height: min(78vh, 720px);
+      overflow: auto;
+      color: var(--text);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: 18px 18px 14px;
+      pointer-events: auto; /* 卡片本身可点 */
+      transform: translateY(0);
+      animation: floatIn .7s ease both;
+    }
+    @keyframes floatIn{
+      from{opacity:0; transform: translateY(10px) scale(.99)}
+      to{opacity:1; transform: translateY(0) scale(1)}
+    }
+    .letter h1{
+      margin: 0 0 8px;
+      font-size: 18px;
+      letter-spacing: .5px;
+      font-weight: 700;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 12px;
+    }
+    .badge{
+      font-size: 12px;
+      color: rgba(255,255,255,.8);
+      padding: 6px 10px;
+      border: 1px solid rgba(255,105,180,.35);
+      border-radius: 999px;
+      background: rgba(255,105,180,.12);
+      white-space: nowrap;
+    }
+    .letter p{
+      margin: 10px 0;
+      line-height: 1.72;
+      color: var(--muted);
+      font-size: 15px;
+    }
+    .sig{
+      margin-top: 12px;
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .name{
+      color: rgba(255,255,255,.88);
+      font-size: 15px;
+      white-space: nowrap;
+    }
+    .actions{
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content:flex-end;
+    }
+    .btn{
+      appearance: none;
+      border: 1px solid var(--btn-border);
+      background: var(--btn-bg);
+      color: rgba(255,255,255,.9);
+      padding: 9px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: transform .08s ease, background .2s ease, border-color .2s ease;
+      user-select: none;
+    }
+    .btn:hover{
+      background: rgba(255,105,180,0.22);
+      border-color: rgba(255,105,180,0.65);
+    }
+    .btn:active{ transform: scale(.98); }
+
+    .mini{
+      font-size: 12px;
+      color: rgba(255,255,255,.65);
+      margin-top: 10px;
+      display:flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* 右下角打开按钮 */
+    .fab{
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      pointer-events: auto;
+      z-index: 9;
+    }
+    .fab button{
+      border-radius: 999px;
+      padding: 10px 14px;
+      border: 1px solid rgba(255,105,180,.55);
+      background: rgba(0,0,0,.25);
+      color: rgba(255,255,255,.9);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      box-shadow: 0 12px 40px rgba(0,0,0,.45);
+    }
+    .hidden{ display:none !important; }
+
+    /* 自定义滚动条（可选） */
+    .letter::-webkit-scrollbar{ width: 10px; }
+    .letter::-webkit-scrollbar-thumb{
+      background: rgba(255,105,180,.25);
+      border-radius: 999px;
+      border: 2px solid rgba(0,0,0,0);
+      background-clip: padding-box;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="heartCanvas"></canvas>
+
+<!-- 情书层 -->
+<div class="letter-wrap" id="letterWrap">
+  <div class="letter" id="letterCard" role="dialog" aria-label="情书">
+    <h1>
+      <span>给你的一封小情书</span>
+      <span class="badge">点一下就会更想你</span>
+    </h1>
+
+    <p>亲爱的你：</p>
+
+    <p>
+      我发现一件事：自从喜欢上你以后，我的日子就变得很不讲道理——明明只是想到你，我也会忍不住笑；
+      明明什么都没发生，我也会觉得心里软软的，像被你轻轻抱了一下。
+    </p>
+
+    <p>
+      我真的很喜欢你。喜欢到有时候想装作淡定都装不太像。你一认真看我，我就想把所有好吃的都分给你；
+      你一对我温柔一点，我就会在心里偷偷说：完了，更喜欢了。
+    </p>
+
+    <p>
+      所以我想问你一个有点小小“贪心”的请求：这个周六或周日，你能不能留一点时间给我呀？
+      不用多隆重，我们就见一面就好。一起吃点你想吃的，走走路，聊聊最近的事——或者就安安静静坐着也行。
+      只要是和你在一起，我就会觉得周末变得特别可爱。
+    </p>
+
+    <p>
+      你不用有压力，我只是很认真地喜欢你，也很认真地想把这份喜欢，变成你生活里舒服又踏实的那一部分。
+    </p>
+
+    <div class="sig">
+      <div class="name">想你的人：<span id="fromName">（你的名字）</span></div>
+      <div class="actions">
+        <button class="btn" id="pickSat">周六</button>
+        <button class="btn" id="pickSun">周日</button>
+        <button class="btn" id="pickEither">都可以</button>
+        <button class="btn" id="closeLetter">先收起来</button>
+      </div>
+    </div>
+
+    <div class="mini">
+      <span id="hint">小提示：可以把“（你的名字）”改成你的名字再发给她。</span>
+      <span id="status"></span>
+    </div>
+  </div>
+</div>
+
+<!-- 重新打开 -->
+<div class="fab hidden" id="fab">
+  <button class="btn" id="openLetter">打开情书 💗</button>
+</div>
+
+<script>
+  const canvas = document.getElementById('heartCanvas');
+  const ctx = canvas.getContext('2d');
+
+  let width, height;
+  let particles = [];
+
+  // 爱心形状的参数方程
+  function heartFunction(t) {
+    return {
+      x: 16 * Math.pow(Math.sin(t), 3),
+      y: -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t))
+    };
+  }
+
+  function resize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+  }
+
+  class Particle {
+    constructor() { this.init(); }
+
+    init() {
+      let t = Math.random() * Math.PI * 2;
+      let pos = heartFunction(t);
+
+      // 将爱心形状放大，并使其位于屏幕中心
+      this.ox = pos.x * 15 + width / 2;
+      this.oy = pos.y * 15 + height / 2;
+
+      // 粒子的原始位置
+      this.x = this.ox;
+      this.y = this.oy;
+
+      // 粒子的速度和大小
+      this.vx = (Math.random() - 0.5) * 2;
+      this.vy = (Math.random() - 0.5) * 2;
+      this.size = Math.random() * 3 + 1;
+
+      // 颜色（红色到粉色）
+      this.hue = Math.random() * 60 + 330; // 330-390 (红色-粉色)
+      this.alpha = Math.random() * 0.5 + 0.5;
+    }
+
+    update(time) {
+      // “跳动”效果
+      let scale = 1 + Math.sin(time * 3) * 0.1;
+      this.x = this.ox + (this.x - this.ox) * scale + Math.sin(time * 5 + this.y) * 5;
+      this.y = this.oy + (this.y - this.oy) * scale + Math.cos(time * 5 + this.x) * 5;
+
+      // 粒子缓慢移动
+      this.x += this.vx;
+      this.y += this.vy;
+
+      // 边界检查
+      if (this.x < 0 || this.x > width || this.y < 0 || this.y > height) {
+        this.init();
+      }
+    }
+
+    draw() {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${this.hue}, 80%, 60%, ${this.alpha})`;
+      ctx.fill();
+    }
+  }
+
+  function createParticles() {
+    particles = [];
+    for (let i = 0; i < 300; i++) {
+      particles.push(new Particle());
+    }
+  }
+
+  function animate() {
+    // 拖尾效果
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    ctx.fillRect(0, 0, width, height);
+
+    let time = Date.now() * 0.001;
+    particles.forEach(p => {
+      p.update(time);
+      p.draw();
+    });
+
+    requestAnimationFrame(animate);
+  }
+
+  // 初始化动画
+  window.addEventListener('resize', () => {
+    resize();
+    createParticles();
+  });
+  resize();
+  createParticles();
+  animate();
+
+  // ====== 情书交互 ======
+  const letterWrap = document.getElementById('letterWrap');
+  const fab = document.getElementById('fab');
+  const status = document.getElementById('status');
+
+  const closeLetter = document.getElementById('closeLetter');
+  const openLetter = document.getElementById('openLetter');
+
+  const pickSat = document.getElementById('pickSat');
+  const pickSun = document.getElementById('pickSun');
+  const pickEither = document.getElementById('pickEither');
+
+  function showStatus(text){
+    status.textContent = text;
+    status.style.opacity = '1';
+    clearTimeout(showStatus._t);
+    showStatus._t = setTimeout(() => status.textContent = '', 2400);
+  }
+
+  function hideCard(){
+    letterWrap.classList.add('hidden');
+    fab.classList.remove('hidden');
+  }
+  function showCard(){
+    letterWrap.classList.remove('hidden');
+    fab.classList.add('hidden');
+  }
+
+  closeLetter.addEventListener('click', hideCard);
+  openLetter.addEventListener('click', showCard);
+
+  function copyText(text){
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text);
+    }
+    // fallback
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    return Promise.resolve();
+  }
+
+  // 生成一条可复制的信息（你可以按需改）
+  function buildMsg(choice){
+    const from = document.getElementById('fromName').textContent.replace(/[（）()]/g,'').trim() || '我';
+    return `我想见你🥺 这周末你更方便${choice}吗？我来配合你～（来自：${from}）`;
+  }
+
+  pickSat.addEventListener('click', async () => {
+    await copyText(buildMsg('周六'));
+    showStatus('已复制：周六 💗 直接粘贴发给她就行');
+  });
+  pickSun.addEventListener('click', async () => {
+    await copyText(buildMsg('周日'));
+    showStatus('已复制：周日 💗 直接粘贴发给她就行');
+  });
+  pickEither.addEventListener('click', async () => {
+    await copyText(buildMsg('周六或周日都可以'));
+    showStatus('已复制：都可以 💗 直接粘贴发给她就行');
+  });
+
+  // 允许按 ESC 收起情书
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') hideCard();
+  });
+</script>
+
+</body>
+</html>
